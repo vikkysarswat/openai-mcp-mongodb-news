@@ -1,0 +1,37 @@
+{
+  "name": "MongoDB News MCP",
+  "description": "Fetch and display news articles from MongoDB with widget support",
+  "version": "1.0.0",
+  "mcp_config": {
+    "command": "python",
+    "args": ["-m", "src.server"],
+    "env": {
+      "MONGODB_URI": "${MONGODB_URI}",
+      "MONGODB_DATABASE": "${MONGODB_DATABASE}",
+      "MONGODB_COLLECTION": "${MONGODB_COLLECTION}"
+    }
+  },
+  "tools": [
+    {
+      "name": "fetch_news",
+      "display_name": "Fetch News",
+      "description": "Fetch latest news articles from MongoDB",
+      "widget_enabled": true,
+      "icon": "📰"
+    },
+    {
+      "name": "search_news",
+      "display_name": "Search News",
+      "description": "Search news articles by keywords",
+      "widget_enabled": true,
+      "icon": "🔍"
+    },
+    {
+      "name": "get_news_categories",
+      "display_name": "News Categories",
+      "description": "Get available news categories",
+      "widget_enabled": false,
+      "icon": "📂"
+    }
+  ]
+}
