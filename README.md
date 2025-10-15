@@ -1,311 +1,335 @@
-# OpenAI MCP MongoDB News App
+# OpenAI Apps SDK MongoDB News Connector
 
-🚀 A Python-based Model Context Protocol (MCP) server that connects to ChatGPT, integrates with MongoDB, and displays news articles through interactive widgets.
+🚀 A **production-ready** OpenAI Apps SDK MCP server with MongoDB integration that displays news articles through **interactive widgets** in ChatGPT, following the official pizza example architecture.
 
-## 📋 Overview
+## 🎯 What This Is
 
-This project demonstrates how to build a ChatGPT connector using the MCP SDK that:
-- Connects to MongoDB to fetch news articles
-- Implements multiple tools (fetch_news, search_news, get_categories)
-- Displays results as interactive widgets in ChatGPT (similar to the pizza example)
-- Provides a foundation for building additional custom tools
+This is a **proper OpenAI Apps SDK implementation** that:
+- ✅ Uses **FastMCP** (not stdio MCP)
+- ✅ Implements **Streamable HTTP** transport
+- ✅ Returns **widget metadata** (`_meta.openai/outputTemplate`)
+- ✅ Serves **React-based UI components** as embedded resources
+- ✅ Integrates with **MongoDB** for real data
+- ✅ Follows the **pizza example** architecture from [openai/openai-apps-sdk-examples](https://github.com/openai/openai-apps-sdk-examples)
 
 ## 🏗️ Architecture
 
 ```
 ┌─────────────┐
-│   ChatGPT   │
-│  (OpenAI)   │
+│   ChatGPT   │  (OpenAI Apps SDK Client)
+│  (Web/App)  │
 └──────┬──────┘
+       │ Streamable HTTP + SSE
        │ MCP Protocol
+┌──────▼──────┐
+│ MCP Server  │  (FastMCP - Python)
+│   FastAPI   │  - Tools (fetch_news, search_news)
+└──────┬──────┘  - Resources (widget HTML)
+       │         - Metadata (_meta.openai/*)
+┌──────▼──────┐
+│  Widgets    │  (React Components)
+│  (Browser)  │  - NewsListWidget
+└─────────────┘  - NewsSearchWidget
        │
 ┌──────▼──────┐
-│ MCP Server  │
-│  (Python)   │
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│  MongoDB    │
-│ (News Data) │
+│   MongoDB   │  (News Database)
 └─────────────┘
 ```
 
-## 🛠️ Features
+## 📁 Project Structure
 
-### Current Tools
+```
+openai-mcp-mongodb-news/
+├── server/                    # MCP Server (Python)
+│   ├── main.py               # FastMCP server with widgets
+│   └── requirements.txt      # Python dependencies
+│
+├── web/                      # Widget Components (React)
+│   ├── src/
+│   │   ├── NewsListWidget.tsx    # News feed widget
+│   │   ├── NewsSearchWidget.tsx  # Search results widget
+│   │   └── styles.css            # Widget styles
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── tsconfig.json
+│
+├── assets/                   # Built widget bundles
+│   ├── news-list.js
+│   ├── news-list.css
+│   ├── news-search.js
+│   └── news-search.css
+│
+├── scripts/                  # Setup scripts
+│   └── setup_mongodb.py
+│
+└── docker-compose.yml        # Full stack deployment
+```
 
-1. **fetch_news** - Fetch news articles with filtering
-   - Filter by category
-   - Limit number of results
-   - Sort by date or relevance
-   - Filter by date range (days back)
-
-2. **search_news** - Search news by keywords
-   - Search in title and content
-   - Limit results
-   - Sort by relevance
-
-3. **get_news_categories** - List all available categories
-
-### Widget Display
-
-News is formatted for widget display in ChatGPT, showing:
-- Article title and preview
-- Category, source, and publication date
-- Read more links
-- Rich formatting with emojis and structure
-
-## 📦 Installation
+## 🚀 Quick Start
 
 ### Prerequisites
+- Python 3.10+
+- Node.js 18+
+- MongoDB 4.4+
+- pnpm (recommended) or npm
 
-- Python 3.10 or higher
-- MongoDB 4.4 or higher
-- OpenAI ChatGPT account with connector access
-
-### Step 1: Clone the Repository
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/vikkysarswat/openai-mcp-mongodb-news.git
 cd openai-mcp-mongodb-news
 ```
 
-### Step 2: Set Up Python Environment
+### 2. Set Up MongoDB
 
 ```bash
-# Create virtual environment
-python -m venv venv
+# Option A: Local MongoDB
+# Make sure MongoDB is running on localhost:27017
 
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
+# Option B: Docker
+docker-compose up -d mongodb
 
-# Install dependencies
+# Initialize with sample data
+cd scripts
+python -m venv .venv
+source .venv/bin/activate
+pip install pymongo python-dotenv
+python setup_mongodb.py
+```
+
+### 3. Build Widgets
+
+```bash
+cd web
+pnpm install  # or npm install
+pnpm run build  # Builds to ../assets/
+```
+
+### 4. Run MCP Server
+
+```bash
+cd ../server
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
+
+# Set environment variables
+export MONGODB_URI=\"mongodb://localhost:27017/\"
+export MONGODB_DATABASE=\"news_db\"
+export MONGODB_COLLECTION=\"news\"
+export ASSET_BASE_URL=\"http://localhost:4444\"
+
+# Start server
+python main.py
 ```
 
-### Step 3: Configure MongoDB
+Server will run on `http://localhost:8000`
 
-1. Copy the example environment file:
+### 5. Serve Widget Assets
+
 ```bash
-cp .env.example .env
+# In another terminal
+cd web
+pnpm run serve  # Serves assets on http://localhost:4444
 ```
 
-2. Edit `.env` with your MongoDB settings:
-```env
+### 6. Expose with ngrok (for ChatGPT)
+
+```bash
+# In another terminal
+ngrok http 8000
+```
+
+You'll get a URL like: `https://abc123.ngrok-free.app`
+
+### 7. Connect to ChatGPT
+
+1. Enable **Developer Mode** in ChatGPT Settings
+2. Go to **Settings > Connectors**
+3. Click **Add Connector**
+4. Enter your ngrok URL: `https://abc123.ngrok-free.app/mcp`
+5. The connector will auto-discover tools
+
+## 🔧 Configuration
+
+### Environment Variables
+
+```bash
+# MongoDB
 MONGODB_URI=mongodb://localhost:27017/
 MONGODB_DATABASE=news_db
 MONGODB_COLLECTION=news
+
+# Assets (where widgets are hosted)
+ASSET_BASE_URL=http://localhost:4444
+
+# For production
+ASSET_BASE_URL=https://your-cdn.com
 ```
 
-3. Set up the database with sample data:
-```bash
-python scripts/setup_mongodb.py
-```
+### Widget Asset Hosting
 
-### Step 4: Configure ChatGPT Connector
+For **production**, host widget assets on a CDN:
+- Upload `assets/*` to your CDN
+- Update `ASSET_BASE_URL` in server
+- Widgets load from CDN URLs
 
-1. Open the ChatGPT connector settings in your OpenAI account
-2. Create a new connector using the configuration in `config/chatgpt_connector.json`
-3. Update the environment variables in the connector settings
+## 🛠️ Tools
 
-## 🚀 Running the Server
+### 1. fetch_news
 
-### Local Development
+Fetch news articles with filters.
 
-```bash
-python src/server.py
-```
+```python
+# ChatGPT usage
+\"Show me technology news from the last 3 days\"
 
-### With Environment Variables
-
-```bash
-export MONGODB_URI="mongodb://localhost:27017/"
-export MONGODB_DATABASE="news_db"
-export MONGODB_COLLECTION="news"
-python src/server.py
-```
-
-## 📖 Usage Examples
-
-### In ChatGPT
-
-Once connected, you can use natural language to interact with your news database:
-
-```
-"Show me the latest technology news"
-"Search for articles about AI"
-"What news categories are available?"
-"Get news from the last 3 days"
-"Show me business news from yesterday"
-```
-
-### Tool Parameters
-
-#### fetch_news
-```json
+# Tool parameters
 {
-  "category": "Technology",
-  "limit": 5,
-  "sort_by": "date",
-  "days_back": 7
+  \"category\": \"Technology\",  # Optional
+  \"limit\": 10,              # Default: 10
+  \"days_back\": 3            # Default: 7
 }
 ```
 
-#### search_news
-```json
+**Returns:** News articles with interactive widget
+
+### 2. search_news
+
+Search news by keywords.
+
+```python
+# ChatGPT usage
+\"Search for articles about artificial intelligence\"
+
+# Tool parameters
 {
-  "query": "artificial intelligence",
-  "limit": 10
+  \"query\": \"artificial intelligence\",
+  \"limit\": 10  # Default: 10
 }
 ```
 
-## 🗄️ MongoDB Schema
+**Returns:** Search results with highlighted matches
 
-### News Collection
+### 3. get_news_categories
+
+List available categories.
+
+```python
+# ChatGPT usage
+\"What news categories are available?\"
+```
+
+**Returns:** List of categories with counts
+
+## 🎨 Widgets
+
+### NewsListWidget
+
+Displays news articles in a card layout with:
+- Article title, category badge, content preview
+- Source and publication date
+- \"Read More\" links to original articles
+- Refresh button to reload
+- Category filter (coming soon)
+
+### NewsSearchWidget
+
+Shows search results with:
+- Search input for new queries
+- Highlighted matching text
+- Same card layout as NewsListWidget
+- Search query display
+
+### Widget Features
+
+Both widgets use `window.openai` API:
+- **window.openai.data** - Receives structured data
+- **window.openai.callTool()** - Calls MCP tools
+- **window.openai.sendFollowupMessage()** - Sends messages
+- **window.openai.requestDisplayMode()** - Changes layout
+
+## 📊 MongoDB Schema
 
 ```javascript
 {
-  "_id": ObjectId,
-  "title": String,
-  "content": String,
-  "category": String,
-  "source": String,
-  "url": String,
-  "published_date": Date,
-  "author": String (optional),
-  "image_url": String (optional)
+  \"_id\": ObjectId,
+  \"title\": String,           // Required
+  \"content\": String,         // Required
+  \"category\": String,        // Required
+  \"source\": String,          // Required
+  \"published_date\": Date,    // Required
+  \"url\": String,             // Optional
+  \"author\": String,          // Optional
+  \"image_url\": String        // Optional
 }
 ```
 
-### Example Document
-
-```json
-{
-  "title": "AI Breakthrough in Natural Language Processing",
-  "content": "Researchers have announced a significant breakthrough...",
-  "category": "Technology",
-  "source": "Tech News Daily",
-  "url": "https://example.com/article",
-  "published_date": "2025-10-15T10:30:00Z"
-}
-```
-
-## 🔧 Adding New Tools
-
-To add a new tool to your MCP server:
-
-1. **Define the tool** in `handle_list_tools()`:
-
-```python
-types.Tool(
-    name="your_tool_name",
-    description="What your tool does",
-    inputSchema={
-        "type": "object",
-        "properties": {
-            "param1": {
-                "type": "string",
-                "description": "Parameter description"
-            }
-        },
-        "required": ["param1"]
-    },
-)
-```
-
-2. **Implement the handler** in `handle_call_tool()`:
-
-```python
-elif name == "your_tool_name":
-    return await your_tool_handler(arguments or {})
-```
-
-3. **Create the handler function**:
-
-```python
-async def your_tool_handler(arguments: dict) -> list[types.TextContent]:
-    # Your implementation here
-    return [types.TextContent(type="text", text="Result")]
-```
-
-4. **Update the connector config** in `config/chatgpt_connector.json`
-
-## 📝 Configuration Files
-
-### chatgpt_connector.json
-
-Defines the connector configuration for ChatGPT:
-- Server name and description
-- Command to run the MCP server
-- Environment variables
-- Tool definitions with widget settings
-
-### .env
-
-Environment variables for the server:
-- MongoDB connection settings
-- Server configuration
-- Optional API keys
-
-## 🐛 Troubleshooting
-
-### MongoDB Connection Issues
+## 🐳 Docker Deployment
 
 ```bash
-# Check if MongoDB is running
-mongosh
+# Full stack with Docker Compose
+docker-compose up -d
 
-# Verify connection string
-echo $MONGODB_URI
+# Server: http://localhost:8000/mcp
+# Assets: http://localhost:4444
+# MongoDB: localhost:27017
 ```
 
-### MCP Server Issues
+## 🧪 Testing
+
+### 1. Test with MCP Inspector
 
 ```bash
-# Run with debug logging
-export LOG_LEVEL=DEBUG
-python src/server.py
+# Install MCPJam or MCP Inspector
+npm install -g @modelcontextprotocol/inspector
+
+# Connect to your server
+mcp-inspector http://localhost:8000/mcp
 ```
 
-### ChatGPT Connector Issues
+### 2. Test Widgets Locally
 
-1. Verify the connector is properly configured
-2. Check environment variables are set
-3. Ensure the server is running and accessible
-4. Review ChatGPT connector logs
+```bash
+cd web
+pnpm run dev  # Opens Vite dev server
+```
 
-## 📚 Resources
+### 3. Test in ChatGPT
 
-- [MCP Documentation](https://modelcontextprotocol.io/)
-- [OpenAI ChatGPT Connectors](https://platform.openai.com/docs/guides/connectors)
-- [MongoDB Python Driver](https://pymongo.readthedocs.io/)
-- [Python asyncio](https://docs.python.org/3/library/asyncio.html)
+Enable Developer Mode and add connector
+
+## 📚 Key Differences from Standard MCP
+
+| Feature | Standard MCP | Apps SDK MCP |
+|---------|-------------|--------------|
+| Transport | stdio | HTTP/SSE |
+| Tool Response | Text only | Text + Widget metadata |
+| UI | None | React components |
+| Metadata | Simple | `_meta.openai/*` required |
+| Resources | Optional | Required for widgets |
+| Client | Claude Desktop | ChatGPT Apps SDK |
+
+## 🔗 Resources
+
+- [OpenAI Apps SDK Examples](https://github.com/openai/openai-apps-sdk-examples)
+- [Apps SDK Documentation](https://developers.openai.com/apps-sdk/)
+- [MCP Specification](https://spec.modelcontextprotocol.io/)
+- [FastMCP Documentation](https://gofastmcp.com/)
 
 ## 🤝 Contributing
 
-Contributions are welcome! Here are some ideas for additional tools:
+This follows OpenAI's Apps SDK architecture. When contributing:
 
-- `add_news` - Add news articles to the database
-- `update_news` - Update existing news articles
-- `delete_news` - Remove news articles
-- `get_trending_topics` - Analyze trending topics
-- `sentiment_analysis` - Analyze news sentiment
-- `news_summary` - Generate summaries of multiple articles
-
-### How to Contribute
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Keep server logic in `server/main.py`
+2. Keep widget UI in `web/src/`
+3. Build widgets before testing
+4. Follow React + TypeScript patterns
+5. Use `window.openai` API for widget-server communication
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - see LICENSE file
 
 ## 👤 Author
 
@@ -313,27 +337,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - GitHub: [@vikkysarswat](https://github.com/vikkysarswat)
 - Email: vikky.sarswat@gmail.com
 
-## 🙏 Acknowledgments
-
-- OpenAI for the MCP SDK and ChatGPT platform
-- MongoDB for the excellent Python driver
-- The open-source community for inspiration
-
-## 📈 Roadmap
-
-- [ ] Add authentication support
-- [ ] Implement news caching
-- [ ] Add image support in widgets
-- [ ] Create web dashboard for news management
-- [ ] Add RSS feed integration
-- [ ] Implement real-time news updates
-- [ ] Add multi-language support
-- [ ] Create automated news scraping
-
 ---
 
-⭐ If you find this project helpful, please give it a star!
+⭐ **Star this repo** if you find it helpful!
 
-🐛 Found a bug? [Open an issue](https://github.com/vikkysarswat/openai-mcp-mongodb-news/issues)
+🐛 **Report issues**: [GitHub Issues](https://github.com/vikkysarswat/openai-mcp-mongodb-news/issues)
 
-💡 Have a feature idea? [Start a discussion](https://github.com/vikkysarswat/openai-mcp-mongodb-news/discussions)
+💬 **Discussions**: [GitHub Discussions](https://github.com/vikkysarswat/openai-mcp-mongodb-news/discussions)
